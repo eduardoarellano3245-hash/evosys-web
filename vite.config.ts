@@ -1,0 +1,24 @@
+ /// <reference types="vitest" />
+
+import vue from '@vitejs/plugin-vue'
+import path from 'path'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  base: './', // 🔥 IMPORTANTE para Electron
+
+  plugins: [
+    vue()
+  ],
+
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
+
+  test: {
+    globals: true,
+    environment: 'jsdom'
+  }
+})

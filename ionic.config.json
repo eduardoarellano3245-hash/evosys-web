@@ -1,0 +1,7 @@
+{
+  "name": "evosys-app",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}
