@@ -840,20 +840,66 @@ const limpiarUsuario = () => {
 }
 
 const crearUsuario = async () => {
-  if (!usuarioForm.value.usuario || !usuarioForm.value.password) return
-  await apiJson(`${API_USUARIOS}/registro`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(usuarioForm.value)
-  })
-  limpiarUsuario()
-  await cargarUsuarios()
+  try {
+    if (!usuarioForm.value.usuario || !usuarioForm.value.password) {
+      alert('Escribe usuario y contraseña')
+      return
+    }
+
+    const nuevoUsuario = {
+      usuario: usuarioForm.value.usuario.trim(),
+      password: usuarioForm.value.password.trim(),
+      rol: usuarioForm.value.rol || 'EMPLEADO'
+    }
+
+    await apiJson(`${API_USUARIOS}/crear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nuevoUsuario)
+    })
+
+    limpiarUsuario()
+    await cargarUsuarios()
+    alert('Usuario creado correctamente')
+  } catch (error) {
+    console.error('Error crearUsuario:', error)
+    alert('Error al crear usuario')
+  }
 }
 
 const eliminarUsuario = async (id) => {
-  if (!id) return
-  await apiJson(`${API_USUARIOS}/usuarios/${id}`, { method: 'DELETE' })
-  await cargarUsuarios()
+  try {
+    if (!id) {
+      alert('No hay ID de usuario')
+      return
+    }
+
+    const confirmar = confirm(`¿Seguro que quieres eliminar el usuario ID ${id}?`)
+    if (!confirmar) return
+
+    const url = `${API_USUARIOS}/${id}`
+    console.log('DELETE URL:', url)
+
+    const res = await fetch(url, {
+      method: 'DELETE'
+    })
+
+    const texto = await res.text()
+
+    console.log('DELETE STATUS:', res.status)
+    console.log('DELETE RESPUESTA:', texto)
+
+    if (!res.ok) {
+      alert(`Error al eliminar usuario: ${res.status}\n${texto}`)
+      return
+    }
+
+    alert('Usuario eliminado correctamente')
+    await cargarUsuarios()
+  } catch (error) {
+    console.error('ERROR DELETE COMPLETO:', error)
+    alert('Error al eliminar usuario. Revisa consola.')
+  }
 }
 
 const limpiarTimers = () => {
