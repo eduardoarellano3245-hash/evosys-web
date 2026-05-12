@@ -884,6 +884,25 @@ const agregarCarrito = (producto) => {
     inputBuscarVenta.value?.focus?.()
   })
 }
+const quitarCarrito = (item) => {
+
+  mostrarSugVenta.value = false
+
+  carrito.value = carrito.value.filter(
+    p => p.id_producto !== item.id_producto
+  )
+
+  yarbisMensaje.value = 'Producto eliminado del carrito.'
+}
+
+const vaciarCarrito = () => {
+
+  mostrarSugVenta.value = false
+
+  carrito.value = []
+
+  yarbisMensaje.value = 'Carrito vaciado.'
+}
 
 const cobrarVenta = async (mostrarAlerta = true) => {
 
@@ -2008,11 +2027,14 @@ td {
   border-radius: 8px;
   padding: 20px;
   margin-top: 25px;
+  margin-bottom: 90px;
 }
+
 
 .resumen h1 {
   color: #00c853;
   font-size: 42px;
+  margin: 10px 0 15px;
 }
 
 .yarbis-button {
