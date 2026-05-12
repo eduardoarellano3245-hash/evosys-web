@@ -1803,7 +1803,9 @@ const detectarIntencionYarbis = (texto = '') => {
 }
 
 const procesarComandoYarbis = async (textoOriginal = '') => {
+  yarbisTranscripcion.value = textoOriginal
   const orden = limpiarActivadores(textoOriginal)
+
   if (!orden) return
 
   yarbisOpen.value = true
