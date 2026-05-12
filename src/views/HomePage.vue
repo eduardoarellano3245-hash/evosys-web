@@ -175,9 +175,7 @@
         </div>
       </section>
 
-      <section v-if="vista === 'ventas'">
-        <h2>CAJA REGISTRADORA - VENTAS</h2>
-
+      <section v-if="vista === 'ventas'" @click="mostrarSugVenta = false">
         <div class="venta-grid">
           <div>
             <label>Nombre del Cliente</label>
