@@ -186,16 +186,20 @@
 
             <label>Buscar Producto por Nombre</label>
             <div class="buscador-box">
-              <input
-                v-model="buscarVenta"
-                ref="inputBuscarVenta"
-                placeholder="Escribe: p, pe, pep..."
-                @input="mostrarSugVenta = true"
-                @focus="mostrarSugVenta = true"
-              />
+             <input
+  v-model="buscarVenta"
+  @click.stop
+  ref="inputBuscarVenta"
+  placeholder="Escribe: p, pe, pep..."
+  @input.stop="mostrarSugVenta = true"
+  @focus="mostrarSugVenta = true"
+/>
 
-              <div class="sugerencias" v-if="mostrarSugVenta && sugerenciasVenta.length">
-                <div
+              <div
+  class="sugerencias"
+  v-if="mostrarSugVenta && sugerenciasVenta.length"
+  @click.stop
+>                <div
                   v-for="p in sugerenciasVenta"
                   :key="p.id_producto"
                   @click="agregarCarrito(p)"
@@ -395,6 +399,9 @@
 
         <div class="yarbis-message">
           <p>{{ yarbisMensaje }}</p>
+          <small>Estado: {{ yarbisEstado }}</small>
+<br />
+<small>Escuché: {{ yarbisTranscripcion }}</small>
         </div>
 
         <div class="yarbis-stats">
@@ -463,6 +470,10 @@ const cantidadVenta = ref(1)
 const clienteVenta = ref('PÚBLICO GENERAL')
 const buscarVenta = ref('')
 const yarbisMensaje = ref('Bienvenido. EVOSYS está en línea.')
+const yarbisTranscripcion = ref('')
+const yarbisEstado = ref('inactivo')
+const yarbisUltimaOrden = ref('')
+const yarbisModoWakeWord = ref(false)
 const yarbisOpen = ref(false)
 const escuchaContinua = ref(false)
 const escuchando = ref(false)
@@ -1166,26 +1177,60 @@ const iniciarReconocimiento = () => {
 
     recognition.onstart = () => {
       escuchando.value = true
+      yarbisEstado.value = 'escuchando'
       yarbisMensaje.value = 'YARBIS escuchando.'
     }
 
     recognition.onresult = (event) => {
-      if (yarbisHablando.value) return
-      let texto = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) texto += event.results[i][0].transcript + ' '
-      }
-      texto = texto.trim()
-      if (!texto) return
 
-      const ahora = Date.now()
-      const limpio = normalizarTexto(texto)
-      if (limpio === ultimoTextoProcesado && ahora - ultimoTiempoProcesado < 900) return
-      ultimoTextoProcesado = limpio
-      ultimoTiempoProcesado = ahora
+  if (yarbisHablando.value) return
 
-      procesarComandoYarbis(texto)
+  let textoFinal = ''
+  let textoIntermedio = ''
+
+  for (let i = event.resultIndex; i < event.results.length; i++) {
+
+    const transcript = event.results[i][0].transcript
+
+    if (event.results[i].isFinal) {
+
+      textoFinal += transcript + ' '
+
+    } else {
+
+      textoIntermedio += transcript + ' '
     }
+  }
+
+  if (textoIntermedio.trim()) {
+
+    yarbisTranscripcion.value = textoIntermedio.trim()
+
+    yarbisEstado.value = 'detectando voz'
+  }
+
+  const texto = textoFinal.trim()
+
+  if (!texto) return
+
+  yarbisTranscripcion.value = texto
+
+  yarbisEstado.value = 'procesando'
+
+  const ahora = Date.now()
+
+  const limpio = normalizarTexto(texto)
+
+  if (
+    limpio === ultimoTextoProcesado &&
+    ahora - ultimoTiempoProcesado < 1200
+  ) return
+
+  ultimoTextoProcesado = limpio
+  ultimoTiempoProcesado = ahora
+
+  procesarComandoYarbis(texto)
+}
 
     recognition.onerror = () => {
       escuchando.value = false
