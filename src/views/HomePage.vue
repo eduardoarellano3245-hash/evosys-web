@@ -452,6 +452,9 @@ const clientes = ref([])
 const ventas = ref([])
 const usuarios = ref([])
 const cargandoUsuario = ref(false)
+const cargandoProducto = ref(false)
+const cargandoCliente = ref(false)
+const cargandoVenta = ref(false)
 const carrito = ref([])
 
 const form = ref({ id_producto: '', nombre: '', precio: 0, stock: 0, codigo_barras: '' })
@@ -663,177 +666,312 @@ const cargarEnFormulario = (p) => {
 const seleccionarProductoInventario = (p) => cargarEnFormulario(p)
 
 const registrarProducto = async (mostrarAlerta = true) => {
-  if (!form.value.nombre) return
-  await apiJson(API_PRODUCTOS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      nombre: form.value.nombre.toUpperCase(),
-      precio: Number(form.value.precio || 0),
-      stock: Number(form.value.stock || 0),
-      codigo_barras: form.value.codigo_barras || ''
+  if (cargandoProducto.value) return
+
+  try {
+    cargandoProducto.value = true
+
+    const nombre = form.value.nombre?.trim()
+
+    if (!nombre) {
+      alert('Escribe el nombre del producto')
+      return
+    }
+
+    const precio = Number(form.value.precio || 0)
+    const stock = Number(form.value.stock || 0)
+
+    if (precio <= 0) {
+      alert('El precio debe ser mayor a 0')
+      return
+    }
+
+    if (stock < 0) {
+      alert('El stock no puede ser negativo')
+      return
+    }
+
+    const existe = productos.value.some(
+      p =>
+        p.nombre?.toLowerCase() === nombre.toLowerCase() ||
+        (
+          form.value.codigo_barras &&
+          p.codigo_barras === form.value.codigo_barras
+        )
+    )
+
+    if (existe) {
+      alert('Ya existe un producto con ese nombre o código')
+      return
+    }
+
+    await apiJson(API_PRODUCTOS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: nombre.toUpperCase(),
+        precio,
+        stock,
+        codigo_barras: form.value.codigo_barras || ''
+      })
     })
-  })
-  limpiarFormulario()
-  await cargarProductos()
-  if (mostrarAlerta) alert('Producto registrado')
+
+    limpiarFormulario()
+    await cargarProductos()
+
+    if (mostrarAlerta) {
+      alert('Producto registrado')
+    }
+
+  } catch (error) {
+    console.error('Error registrarProducto:', error)
+    alert('Error al registrar producto')
+  } finally {
+    cargandoProducto.value = false
+  }
 }
 
 const modificarProducto = async (mostrarAlerta = true) => {
-  if (!form.value.id_producto) return
-  await apiJson(`${API_PRODUCTOS}/${form.value.id_producto}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      nombre: form.value.nombre.toUpperCase(),
-      precio: Number(form.value.precio || 0),
-      stock: Number(form.value.stock || 0),
-      codigo_barras: form.value.codigo_barras || ''
+  if (cargandoProducto.value) return
+
+  try {
+    cargandoProducto.value = true
+
+    if (!form.value.id_producto) {
+      alert('Selecciona un producto')
+      return
+    }
+
+    const nombre = form.value.nombre?.trim()
+
+    if (!nombre) {
+      alert('Escribe el nombre del producto')
+      return
+    }
+
+    const precio = Number(form.value.precio || 0)
+    const stock = Number(form.value.stock || 0)
+
+    if (precio <= 0) {
+      alert('El precio debe ser mayor a 0')
+      return
+    }
+
+    if (stock < 0) {
+      alert('El stock no puede ser negativo')
+      return
+    }
+
+    await apiJson(`${API_PRODUCTOS}/${form.value.id_producto}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: nombre.toUpperCase(),
+        precio,
+        stock,
+        codigo_barras: form.value.codigo_barras || ''
+      })
     })
-  })
-  limpiarFormulario()
-  await cargarProductos()
-  if (mostrarAlerta) alert('Producto modificado')
-}
 
-const eliminarProducto = async (mostrarAlerta = true) => {
-  if (!form.value.id_producto) return
-  await apiJson(`${API_PRODUCTOS}/${form.value.id_producto}`, { method: 'DELETE' })
-  limpiarFormulario()
-  await cargarProductos()
-  if (mostrarAlerta) alert('Producto eliminado')
-}
+    limpiarFormulario()
+    await cargarProductos()
 
-const limpiarCliente = () => {
-  clienteForm.value = { id_cliente: '', nombre: '', telefono: '' }
-}
+    if (mostrarAlerta) {
+      alert('Producto modificado')
+    }
 
-const seleccionarCliente = (c) => {
-  clienteForm.value = { id_cliente: c.id_cliente, nombre: c.nombre, telefono: c.telefono || '' }
-  mostrarSugCli.value = false
-}
-
-const usarClienteVenta = (c) => {
-  clienteVenta.value = c.nombre
-  vista.value = 'ventas'
+  } catch (error) {
+    console.error('Error modificarProducto:', error)
+    alert('Error al modificar producto')
+  } finally {
+    cargandoProducto.value = false
+  }
 }
 
 const guardarCliente = async () => {
-  if (!clienteForm.value.nombre) return
-  const body = JSON.stringify({
-    nombre: clienteForm.value.nombre.toUpperCase(),
-    telefono: clienteForm.value.telefono || ''
-  })
-  if (clienteForm.value.id_cliente) {
-    await apiJson(`${API_CLIENTES}/${clienteForm.value.id_cliente}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body
-    })
-  } else {
-    await apiJson(API_CLIENTES, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body
-    })
-  }
-  limpiarCliente()
-  await cargarClientes()
-}
+  if (cargandoCliente.value) return
 
-const eliminarCliente = async () => {
-  if (!clienteForm.value.id_cliente) return
-  await apiJson(`${API_CLIENTES}/${clienteForm.value.id_cliente}`, { method: 'DELETE' })
-  limpiarCliente()
-  await cargarClientes()
+  try {
+    cargandoCliente.value = true
+
+    const nombre = clienteForm.value.nombre?.trim()
+
+    if (!nombre) {
+      alert('Escribe el nombre del cliente')
+      return
+    }
+
+    const body = JSON.stringify({
+      nombre: nombre.toUpperCase(),
+      telefono: clienteForm.value.telefono || ''
+    })
+
+    if (clienteForm.value.id_cliente) {
+
+      await apiJson(`${API_CLIENTES}/${clienteForm.value.id_cliente}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body
+      })
+
+      alert('Cliente actualizado')
+
+    } else {
+
+      await apiJson(API_CLIENTES, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body
+      })
+
+      alert('Cliente registrado')
+    }
+
+    limpiarCliente()
+    await cargarClientes()
+
+  } catch (error) {
+    console.error('Error guardarCliente:', error)
+    alert('Error al guardar cliente')
+  } finally {
+    cargandoCliente.value = false
+  }
 }
 
 const agregarCarrito = (producto) => {
+  if (cargandoVenta.value) return
   if (!producto) return
-  const cant = Math.max(1, Number(cantidadVenta.value || 1))
-  const stockDisponible = Number(producto.stock || 0)
-  const existente = carrito.value.find(p => p.id_producto === producto.id_producto)
-  const yaEnCarrito = existente ? Number(existente.cantidad || 0) : 0
-  if (stockDisponible < yaEnCarrito + cant) {
-    yarbisMensaje.value = `No hay suficiente stock de ${producto.nombre}. Disponible: ${stockDisponible}.`
+
+  const cant = Math.floor(Number(cantidadVenta.value || 1))
+
+  if (cant <= 0) {
+    alert('La cantidad debe ser mayor a 0')
+    cantidadVenta.value = 1
     return
   }
-  if (existente) existente.cantidad += cant
-  else carrito.value.push({ ...producto, cantidad: cant })
+
+  const stockDisponible = Number(producto.stock || 0)
+
+  const existente = carrito.value.find(
+    p => p.id_producto === producto.id_producto
+  )
+
+  const yaEnCarrito = existente
+    ? Number(existente.cantidad || 0)
+    : 0
+
+  if (stockDisponible < yaEnCarrito + cant) {
+    yarbisMensaje.value =
+      `No hay suficiente stock de ${producto.nombre}. Disponible: ${stockDisponible}.`
+    return
+  }
+
+  if (existente) {
+    existente.cantidad += cant
+  } else {
+    carrito.value.push({
+      ...producto,
+      cantidad: cant
+    })
+  }
+
   buscarVenta.value = ''
   cantidadVenta.value = 1
   mostrarSugVenta.value = false
   vista.value = 'ventas'
-  nextTick(() => inputBuscarVenta.value?.focus?.())
-}
 
-const quitarCarrito = (item) => {
-  carrito.value = carrito.value.filter(p => p.id_producto !== item.id_producto)
-}
-
-const vaciarCarrito = () => {
-  carrito.value = []
+  nextTick(() => {
+    inputBuscarVenta.value?.focus?.()
+  })
 }
 
 const cobrarVenta = async (mostrarAlerta = true) => {
-  if (!carrito.value.length) {
-    yarbisMensaje.value = 'El carrito está vacío.'
-    return
-  }
 
-  for (const item of carrito.value) {
-    const productoActual = productos.value.find(p => p.id_producto === item.id_producto) || item
-    const stockFinal = Number(productoActual.stock || 0) - Number(item.cantidad || 0)
-    if (stockFinal < 0) {
-      yarbisMensaje.value = `No hay suficiente stock de ${item.nombre}.`
+  if (cargandoVenta.value) return
+
+  try {
+
+    cargandoVenta.value = true
+
+    if (!carrito.value.length) {
+      yarbisMensaje.value = 'El carrito está vacío.'
       return
     }
-  }
 
-  const totalAntes = Number(totalVenta.value)
+    for (const item of carrito.value) {
 
-  for (const item of carrito.value) {
-    const productoActual = productos.value.find(p => p.id_producto === item.id_producto) || item
-    await apiJson(`${API_PRODUCTOS}/${item.id_producto}`, {
-      method: 'PUT',
+      const productoActual =
+        productos.value.find(
+          p => p.id_producto === item.id_producto
+        ) || item
+
+      const stockFinal =
+        Number(productoActual.stock || 0) -
+        Number(item.cantidad || 0)
+
+      if (stockFinal < 0) {
+        yarbisMensaje.value =
+          `No hay suficiente stock de ${item.nombre}.`
+        return
+      }
+    }
+
+    const totalAntes = Number(totalVenta.value)
+
+    if (totalAntes <= 0 || isNaN(totalAntes)) {
+      alert('Total inválido')
+      return
+    }
+
+    for (const item of carrito.value) {
+
+      const productoActual =
+        productos.value.find(
+          p => p.id_producto === item.id_producto
+        ) || item
+
+      await apiJson(`${API_PRODUCTOS}/${item.id_producto}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: item.nombre,
+          precio: Number(item.precio || 0),
+          stock:
+            Number(productoActual.stock || 0) -
+            Number(item.cantidad || 0),
+          codigo_barras: item.codigo_barras || ''
+        })
+      })
+    }
+
+    await apiJson(API_VENTAS, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nombre: item.nombre,
-        precio: Number(item.precio || 0),
-        stock: Number(productoActual.stock || 0) - Number(item.cantidad || 0),
-        codigo_barras: item.codigo_barras || ''
+        cliente: clienteVenta.value || 'PÚBLICO GENERAL',
+        total: totalAntes
       })
     })
+
+    yarbisMensaje.value =
+      `Venta realizada por ${totalAntes.toFixed(2)} pesos.`
+
+    carrito.value = []
+    clienteVenta.value = 'PÚBLICO GENERAL'
+
+    await cargarProductos()
+    await cargarVentas()
+
+    if (mostrarAlerta) {
+      alert('Venta cobrada')
+    }
+
+  } catch (error) {
+    console.error('Error cobrarVenta:', error)
+    alert('Error al cobrar venta')
+  } finally {
+    cargandoVenta.value = false
   }
-
-  await apiJson(API_VENTAS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      cliente: clienteVenta.value || 'PÚBLICO GENERAL',
-      total: totalAntes
-    })
-  })
-
-  yarbisMensaje.value = `Venta realizada por ${totalAntes.toFixed(2)} pesos.`
-  carrito.value = []
-  clienteVenta.value = 'PÚBLICO GENERAL'
-  await cargarProductos()
-  await cargarVentas()
-  if (mostrarAlerta) alert('Venta cobrada')
-}
-
-const buscarPorCodigo = () => {
-  const codigo = String(codigoEscaner.value || '').trim()
-  if (!codigo) return
-  const p = productos.value.find(x => String(x.codigo_barras || '').trim() === codigo)
-  if (!p) {
-    yarbisMensaje.value = 'Producto no encontrado por código.'
-    codigoEscaner.value = ''
-    return
-  }
-  agregarCarrito(p)
-  codigoEscaner.value = ''
 }
 
 const limpiarUsuario = () => {
