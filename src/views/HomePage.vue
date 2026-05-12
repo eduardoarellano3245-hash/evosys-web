@@ -369,7 +369,7 @@
               <tr v-for="u in usuarios" :key="u.id">
                 <td>{{ u.id }}</td>
                 <td>{{ u.usuario }}</td>
-                <td>{{ u.password }}</td>
+                <td>********</td>
                 <td>{{ u.rol }}</td>
                 <td>
                   <button class="rojo mini" @click="eliminarUsuario(u.id)">
@@ -451,6 +451,7 @@ const productos = ref([])
 const clientes = ref([])
 const ventas = ref([])
 const usuarios = ref([])
+const cargandoUsuario = ref(false)
 const carrito = ref([])
 
 const form = ref({ id_producto: '', nombre: '', precio: 0, stock: 0, codigo_barras: '' })
@@ -840,65 +841,103 @@ const limpiarUsuario = () => {
 }
 
 const crearUsuario = async () => {
+  if (cargandoUsuario.value) return
+
   try {
-    if (!usuarioForm.value.usuario || !usuarioForm.value.password) {
+    cargandoUsuario.value = true
+
+    const usuario = usuarioForm.value.usuario?.trim()
+    const password = usuarioForm.value.password?.trim()
+    const rol = usuarioForm.value.rol || 'EMPLEADO'
+
+    if (!usuario || !password) {
       alert('Escribe usuario y contraseña')
       return
     }
 
-    const nuevoUsuario = {
-      usuario: usuarioForm.value.usuario.trim(),
-      password: usuarioForm.value.password.trim(),
-      rol: usuarioForm.value.rol || 'EMPLEADO'
+    if (password.length < 4) {
+      alert('La contraseña debe tener mínimo 4 caracteres')
+      return
+    }
+
+    const existe = usuarios.value.some(
+      u => u.usuario?.toLowerCase() === usuario.toLowerCase()
+    )
+
+    if (existe) {
+      alert('Ese usuario ya existe')
+      return
     }
 
     await apiJson(`${API_USUARIOS}/crear`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nuevoUsuario)
+      body: JSON.stringify({
+        usuario,
+        password,
+        rol
+      })
     })
 
     limpiarUsuario()
     await cargarUsuarios()
+
     alert('Usuario creado correctamente')
+
   } catch (error) {
     console.error('Error crearUsuario:', error)
     alert('Error al crear usuario')
+  } finally {
+    cargandoUsuario.value = false
   }
 }
 
 const eliminarUsuario = async (id) => {
+  if (cargandoUsuario.value) return
+
   try {
+    cargandoUsuario.value = true
+
     if (!id) {
       alert('No hay ID de usuario')
       return
     }
 
-    const confirmar = confirm(`¿Seguro que quieres eliminar el usuario ID ${id}?`)
-    if (!confirmar) return
+    const usuarioEliminar = usuarios.value.find(u => u.id === id)
 
-    const url = `${API_USUARIOS}/${id}`
-    console.log('DELETE URL:', url)
-
-    const res = await fetch(url, {
-      method: 'DELETE'
-    })
-
-    const texto = await res.text()
-
-    console.log('DELETE STATUS:', res.status)
-    console.log('DELETE RESPUESTA:', texto)
-
-    if (!res.ok) {
-      alert(`Error al eliminar usuario: ${res.status}\n${texto}`)
+    if (!usuarioEliminar) {
+      alert('Usuario no encontrado')
       return
     }
 
-    alert('Usuario eliminado correctamente')
+    if (usuarioSesion.value?.usuario === usuarioEliminar.usuario) {
+      alert('No puedes eliminar el usuario con el que tienes sesión iniciada')
+      return
+    }
+
+    const admins = usuarios.value.filter(u => u.rol === 'ADMIN')
+
+    if (usuarioEliminar.rol === 'ADMIN' && admins.length <= 1) {
+      alert('No puedes eliminar el último ADMIN del sistema')
+      return
+    }
+
+    const confirmar = confirm(`¿Seguro que quieres eliminar a ${usuarioEliminar.usuario}?`)
+    if (!confirmar) return
+
+    await apiJson(`${API_USUARIOS}/${id}`, {
+      method: 'DELETE'
+    })
+
     await cargarUsuarios()
+
+    alert('Usuario eliminado correctamente')
+
   } catch (error) {
-    console.error('ERROR DELETE COMPLETO:', error)
-    alert('Error al eliminar usuario. Revisa consola.')
+    console.error('Error eliminarUsuario:', error)
+    alert('Error al eliminar usuario')
+  } finally {
+    cargandoUsuario.value = false
   }
 }
 
