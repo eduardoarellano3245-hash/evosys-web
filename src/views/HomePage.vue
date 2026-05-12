@@ -1825,7 +1825,33 @@ const procesarComandoYarbis = async (textoOriginal = '') => {
       yarbisHablar()
       return
     }
+const productoDirecto =
+  detectarProductoFlexible(orden)
 
+if (
+  productoDirecto &&
+  !contieneAlgo(orden, [
+    'precio',
+    'stock',
+    'cuanto',
+    'vale',
+    'cuesta',
+    'hay'
+  ])
+) {
+
+  cantidadVenta.value =
+    extraerCantidad(orden)
+
+  agregarCarrito(productoDirecto)
+
+  yarbisMensaje.value =
+    `Agregué ${productoDirecto.nombre} al carrito.`
+
+  yarbisHablar()
+
+  return
+}
     const intencion = detectarIntencionYarbis(orden)
 
     switch (intencion) {
