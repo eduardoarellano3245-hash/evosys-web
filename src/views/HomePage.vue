@@ -490,6 +490,11 @@ const codigoEscaner = ref('')
 const tablaActual = ref('productos')
 
 const memoriaYarbis = ref([])
+const contextoActivo = ref({
+  ultimaAccion: null,
+  ultimoProducto: null,
+  ultimaCantidad: 1
+})
 let reinicioTimer = null
 let ultimoTextoProcesado = ''
 let ultimoTiempoProcesado = 0
@@ -518,6 +523,24 @@ const numeroPalabra = {
   un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
   seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11,
   doce: 12, trece: 13, catorce: 14, quince: 15, veinte: 20
+}
+const respuestasNaturales = {
+
+  venta: [
+    'Listo, agregué',
+    'Perfecto, añadí',
+    'Hecho, puse',
+    'Ya quedó agregado',
+    'Producto agregado'
+  ],
+
+  abrir: [
+    'Abriendo',
+    'Entrando a',
+    'Mostrando',
+    'Accediendo a'
+  ]
+
 }
 
 const extraerCantidad = (texto = '') => {
@@ -884,6 +907,12 @@ const agregarCarrito = (producto) => {
     })
   }
 
+contextoActivo.value = {
+  ultimaAccion: 'venta',
+  ultimoProducto: producto,
+  ultimaCantidad: cant
+}
+
   buscarVenta.value = ''
   cantidadVenta.value = 1
   mostrarSugVenta.value = false
@@ -1134,7 +1163,7 @@ const hablarTexto = (texto = '') => {
   if (memoriaYarbis.value.length > 20) memoriaYarbis.value.shift()
 
   if (!('speechSynthesis' in window)) return
-
+yarbisEstado.value = 'hablando'
   pausarReconocimiento()
   yarbisHablando.value = true
 
@@ -1145,8 +1174,11 @@ const hablarTexto = (texto = '') => {
 
   speech.onend = () => {
     yarbisHablando.value = false
-    reiniciarEscucha(80)
-  }
+  yarbisEstado.value = escuchaContinua.value
+    ? 'reconectando'
+    : 'inactivo'
+  reiniciarEscucha(180)
+}
 
   speech.onerror = () => {
     yarbisHablando.value = false
@@ -1231,18 +1263,26 @@ const iniciarReconocimiento = () => {
 
   procesarComandoYarbis(texto)
 }
-
-    recognition.onerror = () => {
-      escuchando.value = false
-      recognitionRef.value = null
-      reiniciarEscucha(200)
-    }
-
+    recognition.onerror = (event) => {
+  console.warn('Error reconocimiento:', event.error)
+  escuchando.value = false
+  yarbisEstado.value = 'reconectando'
+  recognitionRef.value = null
+  reiniciarEscucha(350)
+}
     recognition.onend = () => {
-      escuchando.value = false
-      recognitionRef.value = null
-      reiniciarEscucha(120)
-    }
+  escuchando.value = false
+  recognitionRef.value = null
+  if (
+    escuchaContinua.value &&
+    !yarbisHablando.value
+  ) {
+    yarbisEstado.value = 'reconectando'
+    reiniciarEscucha(250)
+  } else {
+    yarbisEstado.value = 'inactivo'
+  }
+}
 
     recognition.start()
   } catch {
@@ -1277,7 +1317,16 @@ const toggleYarbis = () => {
 const yarbisAbrir = (modulo) => {
   yarbisFlujo.value = null
   vista.value = modulo
-  yarbisMensaje.value = `Abriendo ${modulo}.`
+  contextoActivo.value.ultimaAccion = 'abrir'
+  const respuesta =
+    respuestasNaturales.abrir[
+      Math.floor(
+        Math.random() *
+        respuestasNaturales.abrir.length
+      )
+    ]
+  yarbisMensaje.value =
+    `${respuesta} ${modulo}.`
 }
 
 const esComandoAbrirModulo = (texto = '') => {
@@ -1375,6 +1424,11 @@ const yarbisResumen = () => {
 
 const responderPreguntaProducto = (texto = '') => {
   const producto = detectarProductoFlexible(texto)
+  if (producto) {
+
+  contextoActivo.value.ultimoProducto = producto
+
+}
   if (!producto) return false
   const t = normalizarTexto(texto)
 
@@ -1619,18 +1673,57 @@ const crearClientePorVoz = async (texto = '') => {
 }
 
 const venderProductoPorVoz = (texto = '') => {
-  const producto = detectarProductoFlexible(texto)
-  const cantidad = extraerCantidad(texto)
-
-  if (!producto) {
+  const orden = limpiarActivadores(texto)
+  const partes = orden
+    .split(/\by\b|,/gi)
+    .map(x => x.trim())
+    .filter(Boolean)
+  let agregados = []
+  for (const parte of partes) {
+    let producto = detectarProductoFlexible(parte)
+    const cantidad = extraerCantidad(parte)
+    if (!producto) {
+      if (
+        contieneAlgo(parte, [
+          'otra',
+          'otro',
+          'mas',
+          'más',
+          'igual'
+        ])
+      ) {
+        producto = contextoActivo.value.ultimoProducto
+      }
+    }
+    if (!producto) continue
+    cantidadVenta.value = cantidad || 1
+    agregarCarrito(producto)
+    contextoActivo.value = {
+      ultimaAccion: 'venta',
+      ultimoProducto: producto,
+      ultimaCantidad: cantidad || 1
+    }
+    agregados.push(
+      `${cantidad || 1} ${producto.nombre}`
+    )
+  }
+  if (!agregados.length) {
     iniciarFlujoVenta()
     return
   }
-
-  cantidadVenta.value = cantidad
-  agregarCarrito(producto)
-  yarbisMensaje.value = `Agregué ${cantidad} de ${producto.nombre} al carrito.`
-  yarbisFlujo.value = { tipo: 'venta', paso: 'confirmar', datos: {} }
+  const respuesta = respuestasNaturales.venta[
+    Math.floor(
+      Math.random() *
+      respuestasNaturales.venta.length
+    )
+  ]
+  yarbisMensaje.value =
+    `${respuesta} ${agregados.join(', ')}`
+  yarbisFlujo.value = {
+    tipo: 'venta',
+    paso: 'confirmar',
+    datos: {}
+  }
 }
 
 const detectarIntencionYarbis = (texto = '') => {
