@@ -1803,6 +1803,32 @@ const detectarIntencionYarbis = (texto = '') => {
 
   return 'desconocido'
 }
+const consultarYarbisIA = async (texto = '') => {
+  const res = await fetch(`${API_BASE}/api/yarbis/ia`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      mensaje: texto,
+      contexto: {
+        vista: vista.value,
+        productos: productos.value,
+        clientes: clientes.value,
+        ventas: ventas.value,
+        carrito: carrito.value,
+        totalVenta: totalVenta.value,
+        totalArticulos: totalArticulos.value
+      }
+    })
+  })
+
+  if (!res.ok) {
+    throw new Error('Error IA')
+  }
+
+  return await res.json()
+}
 
 const procesarComandoYarbis = async (textoOriginal = '') => {
   yarbisTranscripcion.value = textoOriginal
@@ -1830,6 +1856,7 @@ const procesarComandoYarbis = async (textoOriginal = '') => {
     }
 
     if (responderPreguntaLibre(orden)) {
+      yarbisHablar()
       return
     }
 
@@ -1860,14 +1887,9 @@ const procesarComandoYarbis = async (textoOriginal = '') => {
       ])
     ) {
       cantidadVenta.value = extraerCantidad(orden)
-
       agregarCarrito(productoDirecto)
-
-      yarbisMensaje.value =
-        `Agregué ${productoDirecto.nombre} al carrito.`
-
+      yarbisMensaje.value = `Agregué ${productoDirecto.nombre} al carrito.`
       yarbisHablar()
-
       return
     }
 
@@ -1907,15 +1929,24 @@ const procesarComandoYarbis = async (textoOriginal = '') => {
         break
 
       default:
-        yarbisMensaje.value =
-          'No entendí el comando. Puedes pedirme abrir módulos, vender productos, registrar clientes, registrar productos o consultar inventario.'
+        try {
+          yarbisEstado.value = 'consultando IA'
+
+          const ia = await consultarYarbisIA(orden)
+
+          yarbisMensaje.value =
+            ia?.respuesta || 'No pude obtener respuesta de la IA.'
+        } catch (error) {
+          console.error('Error consultando IA:', error)
+
+          yarbisMensaje.value =
+            'No entendí el comando y la IA no respondió.'
+        }
         break
     }
   } catch (e) {
     console.error(e)
-
-    yarbisMensaje.value =
-      'Ocurrió un error procesando la orden.'
+    yarbisMensaje.value = 'Ocurrió un error procesando la orden.'
   }
 
   yarbisHablar()
