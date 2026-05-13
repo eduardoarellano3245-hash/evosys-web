@@ -1829,12 +1829,12 @@ const procesarComandoYarbis = async (textoOriginal = '') => {
       return
     }
 
-    if (responderPreguntaProducto(orden)) {
-      yarbisHablar()
+    if (responderPreguntaLibre(orden)) {
       return
     }
 
-    if (responderPreguntaLibre(orden)) {
+    if (responderPreguntaProducto(orden)) {
+      yarbisHablar()
       return
     }
 
@@ -1843,6 +1843,9 @@ const procesarComandoYarbis = async (textoOriginal = '') => {
     if (
       productoDirecto &&
       !contieneAlgo(orden, [
+        'resumen',
+        'sistema',
+        'estado',
         'precio',
         'stock',
         'cuanto',
@@ -1910,55 +1913,9 @@ const procesarComandoYarbis = async (textoOriginal = '') => {
     }
   } catch (e) {
     console.error(e)
+
     yarbisMensaje.value =
       'Ocurrió un error procesando la orden.'
-  }
-
-  yarbisHablar()
-}
-
-    const intencion = detectarIntencionYarbis(orden)
-
-    switch (intencion) {
-      case 'ventas':
-      case 'inventario':
-      case 'clientes':
-      case 'base':
-        yarbisAbrir(intencion)
-        break
-
-      case 'cliente':
-        await crearClientePorVoz(orden)
-        break
-
-      case 'producto':
-        await crearProductoPorVoz(orden)
-        break
-
-      case 'venta':
-        iniciarFlujoVenta()
-        break
-
-      case 'vender':
-        venderProductoPorVoz(orden)
-        break
-
-      case 'cobrar':
-        await cobrarVenta(false)
-        break
-
-      case 'vaciar':
-        vaciarCarrito()
-        yarbisMensaje.value = 'Carrito vaciado.'
-        break
-
-      default:
-        yarbisMensaje.value = 'No entendí el comando. Puedes pedirme abrir módulos, vender productos, registrar clientes, registrar productos o consultar inventario.'
-        break
-    }
-  } catch (e) {
-    console.error(e)
-    yarbisMensaje.value = 'Ocurrió un error procesando la orden.'
   }
 
   yarbisHablar()
