@@ -398,11 +398,13 @@
         </div>
 
         <div class="yarbis-message">
-          <p>{{ yarbisMensaje }}</p>
-          <small>Estado: {{ yarbisEstado }}</small>
-<br />
-<small>Escuché: {{ yarbisTranscripcion }}</small>
-        </div>
+  <p>{{ yarbisMensaje }}</p>
+  <small>Estado: {{ yarbisEstado }}</small>
+  <br />
+  <small class="transcripcion">
+    Escuché: {{ yarbisTranscripcion || '...' }}
+  </small>
+</div>
 
         <div class="yarbis-stats">
           <div>
@@ -1804,13 +1806,22 @@ const detectarIntencionYarbis = (texto = '') => {
 
 const procesarComandoYarbis = async (textoOriginal = '') => {
   yarbisTranscripcion.value = textoOriginal
+
   const orden = limpiarActivadores(textoOriginal)
 
   if (!orden) return
 
   yarbisOpen.value = true
-  memoriaYarbis.value.push({ tipo: 'usuario', texto: orden, fecha: Date.now() })
-  if (memoriaYarbis.value.length > 20) memoriaYarbis.value.shift()
+
+  memoriaYarbis.value.push({
+    tipo: 'usuario',
+    texto: orden,
+    fecha: Date.now()
+  })
+
+  if (memoriaYarbis.value.length > 20) {
+    memoriaYarbis.value.shift()
+  }
 
   try {
     if (await responderFlujoYarbis(orden)) {
@@ -1824,36 +1835,88 @@ const procesarComandoYarbis = async (textoOriginal = '') => {
     }
 
     if (responderPreguntaLibre(orden)) {
-      yarbisHablar()
       return
     }
-const productoDirecto =
-  detectarProductoFlexible(orden)
 
-if (
-  productoDirecto &&
-  !contieneAlgo(orden, [
-    'precio',
-    'stock',
-    'cuanto',
-    'vale',
-    'cuesta',
-    'hay'
-  ])
-) {
+    const productoDirecto = detectarProductoFlexible(orden)
 
-  cantidadVenta.value =
-    extraerCantidad(orden)
+    if (
+      productoDirecto &&
+      !contieneAlgo(orden, [
+        'precio',
+        'stock',
+        'cuanto',
+        'cuantos',
+        'cuantas',
+        'vale',
+        'cuesta',
+        'hay',
+        'tienes',
+        'existencia',
+        'existencias'
+      ])
+    ) {
+      cantidadVenta.value = extraerCantidad(orden)
 
-  agregarCarrito(productoDirecto)
+      agregarCarrito(productoDirecto)
 
-  yarbisMensaje.value =
-    `Agregué ${productoDirecto.nombre} al carrito.`
+      yarbisMensaje.value =
+        `Agregué ${productoDirecto.nombre} al carrito.`
+
+      yarbisHablar()
+
+      return
+    }
+
+    const intencion = detectarIntencionYarbis(orden)
+
+    switch (intencion) {
+      case 'ventas':
+      case 'inventario':
+      case 'clientes':
+      case 'base':
+        yarbisAbrir(intencion)
+        break
+
+      case 'cliente':
+        await crearClientePorVoz(orden)
+        break
+
+      case 'producto':
+        await crearProductoPorVoz(orden)
+        break
+
+      case 'venta':
+        iniciarFlujoVenta()
+        break
+
+      case 'vender':
+        venderProductoPorVoz(orden)
+        break
+
+      case 'cobrar':
+        await cobrarVenta(false)
+        break
+
+      case 'vaciar':
+        vaciarCarrito()
+        yarbisMensaje.value = 'Carrito vaciado.'
+        break
+
+      default:
+        yarbisMensaje.value =
+          'No entendí el comando. Puedes pedirme abrir módulos, vender productos, registrar clientes, registrar productos o consultar inventario.'
+        break
+    }
+  } catch (e) {
+    console.error(e)
+    yarbisMensaje.value =
+      'Ocurrió un error procesando la orden.'
+  }
 
   yarbisHablar()
-
-  return
 }
+
     const intencion = detectarIntencionYarbis(orden)
 
     switch (intencion) {
@@ -2405,5 +2468,12 @@ td {
   to {
     transform: rotate(360deg);
   }
+}
+.transcripcion {
+  display: block;
+  margin-top: 6px;
+  color: #8eeeff;
+  font-size: 12px;
+  word-break: break-word;
 }
 </style>
