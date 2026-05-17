@@ -661,9 +661,20 @@ const totalArticulos = computed(() =>
 
 const apiJson = async (url, options = null) => {
   const res = await fetch(url, options || undefined)
-  if (!res.ok) throw new Error('Error API')
+
   const text = await res.text()
-  return text ? JSON.parse(text) : null
+
+  if (!res.ok) {
+    throw new Error(text || 'Error API')
+  }
+
+  if (!text) return null
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
 }
 
 const cargarProductos = async () => {
